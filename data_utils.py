@@ -4,6 +4,8 @@ from skimage import io
 import cv2 
 import matplotlib.pyplot as plt 
 from skimage import color 
+import os 
+import re 
 
 img_folder_path = '/data_disk1/Synth/SynthText'
 charBB_path = '/data_disk1/Synth/SynthText/charBB.npy'
@@ -128,6 +130,8 @@ def make_size_list(img_folder_path, imnames):
 
 if __name__ =='__main__':
 
+    print("Data load")
+
     charBB = np.load(charBB_path, allow_pickle=True) 
     imnaems = np.load(imnames_path, allow_pickle=True)
     txt = np.load(txt_path, allow_pickle=True)
@@ -139,16 +143,24 @@ if __name__ =='__main__':
     charBB = charBB[0]
     txt = txt[0]
 
+    print('Data load Complete')
+
     #txt 파일에서 공백을 제거한다 
+    print('delete blank in txt.npy')
     txt_without_blank = save_txt_without_blank(txt)
     np.save('./txt_without_blank' , txt_without_blank)
+    print('complete')
 
     #Affinity Score를 구해야하는 charBB의 index를 저장한다. 
     #ex) [1,2,7,10] -> 1~2 , 2~3, 7~8, 10~11의 Affinity를 구해야한다. 
+    print('make Affinity index')
     Affinity_index = make_Affinity_index(txt_without_blank)
     np.save('./Affinity_index' , Affinity_index)
+    print('complete')
 
     #Affinity_index, charBB를 이용해서 char_aff_BB를 만든다 
+    print('make affinity score bounding box')
     char_aff_BB = affinity_box_list(Affinity_index , charBB)
     np.save('./char_aff_BB' , char_aff_BB)
+    print('complete')
 
