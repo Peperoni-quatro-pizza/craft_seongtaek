@@ -45,9 +45,11 @@ def main(img_size = img_size, thred = 3.5, test = False):
 
     #Save 
     heatmap = vec_scaledGaussian(isotropic_Gray_Image)
-    np.save('./heatmap' , heatmap)
+    if test == False: 
+        return heatmap
 
-    if test: 
+    else: 
+        np.save('./heatmap' , heatmap)
         GM = vec_scaledGaussian(isotropic_Gray_Image)*255
         GM = GM.astype(np.uint8)
         GM = cv2.applyColorMap(GM,cv2.COLORMAP_JET)
