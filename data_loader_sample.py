@@ -1,6 +1,7 @@
 from __future__ import print_function, division
 import os
 import cv2
+import random
 import torch
 import pandas as pd
 from skimage import io, transform
@@ -35,7 +36,9 @@ def denormalizeMeanVariance(in_img, mean=(0.485, 0.456, 0.406), variance=(0.229,
 
 class normalize(object):
 
-    def __call__(self, image, region_score, affinity_score, mean=(0.485, 0.456, 0.406), variance=(0.229, 0.224, 0.225)):
+    def __call__(self, gt, mean=(0.485, 0.456, 0.406), variance=(0.229, 0.224, 0.225)):
+
+        image, region_score, affinity_score = gt 
 
         img = image.copy().astype(np.float32)
         img -= np.array([mean[0] * 255.0, mean[1] * 255.0, mean[2] * 255.0], dtype=np.float32)
@@ -45,7 +48,9 @@ class normalize(object):
 
 class ToTensor(object): 
 
-    def __call__(self, image, region_score, affinity_score): 
+    def __call__(self, gt): 
+
+        image, region_score, affinity_score = gt 
 
         # numpy image : H x W x C 
         # torch image : C x H x C 
@@ -55,10 +60,16 @@ class ToTensor(object):
 
 class RandomCrop(object): 
 
-    def __call__(self, image, region_score, affinity_score): 
+    def __init__(self, scale=0.2):
 
-        rand1 = random.random()*0.2 
-        rand2 = random.random()*0.2 
+        self.scale = scale
+
+    def __call__(self, gt): 
+
+        image, region_score, affinity_score = gt 
+
+        rand1 = random.random()*self.scale
+        rand2 = random.random()*self.scale
 
         left = int(image.shape[0] * rand1)
         right = int(image.shape[0] - image.shape[0]* rand2)
@@ -67,10 +78,29 @@ class RandomCrop(object):
         top = int(image.shape[1] - image.shape[1]*rand2)
 
         image = image[left:right, bottom:top, :]
-        region_score = region_score[left:right , bottom:top , : ]
-        affinity_score[left:right, bottom:top, :]
+        region_score = region_score[left:right , bottom:top]
+        affinity_score = affinity_score[left:right, bottom:top]
 
         return image, region_score, affinity_score
+
+class Resize(object): 
+
+    def __init__(self, target_size=768):
+
+        self.target_size = target_size
+
+    def __call__(self, gt): 
+
+        image, region_score, affinity_score = gt 
+
+        image = cv2.resize(image, (self.target_size, self.target_size), cv2.INTER_LINEAR)
+
+        region_score = cv2.resize(region_score, (self.target_size//2, self.target_size//2), cv2.INTER_LINEAR)
+        affinity_score = cv2.resize(affinity_score, (self.target_size//2, self.target_size//2), cv2.INTER_LINEAR)
+
+        return image, region_score, affinity_score
+
+
 
 #Sample Data Set 
 class SampleDataset(Dataset): 
@@ -103,13 +133,7 @@ class SampleDataset(Dataset):
         affinity_score = generate_gt(img = image, heatmap=self.heatmap, bbox_cor=self.aff_charBB[index])
 
         if self.transform: 
-            image, region_score, affinity_score = self.transform(image, region_score, affinity_score)
-
-        image = self.resize(img = image, target_size = self.target_size)
-        region_score = self.resize_gt(gt = region_score)
-        affinity_score = self.resize_gt(gt = affinity_score)
-
-        
+            image, region_score, affinity_score = self.transform([image, region_score, affinity_score])
 
         return image, region_score, affinity_score
 
@@ -121,9 +145,19 @@ if __name__ == '__main__':
                                     imnames= '/root/data/SynthText/imnames_sample.npy',
                                     charBB = '/root/data/SynthText/charBB_sample.npy',
                                     aff_charBB='/root/data/SynthText/aff_charBB_sample.npy',
-                                    transform= transforms.Compose([ToTensor()]))
+                                    transform= transforms.Compose([RandomCrop(scale=0.25),Resize()]))
 
     img, region_score, affinity_score = sample_dataset[0]
-    print('img shape : {}'.format(img.size()))
-    print('region score shape : {}'.format(region_score.size()))
-    print('affinity score shape : {}'.format(affinity_score.size()))
+
+    io.imsave('/root/craft_re/qq/img.jpg', img)
+    io.imsave('/root/craft_re/qq/region.jpg', region_score)
+    io.imsave('/root/craft_re/qq/affinity.jpg', affinity_score)
+
+    print('img shape : {}'.format(img.shape))
+    print('region score shape : {}'.format(region_score.shape))
+    print('affinity score shape : {}'.format(affinity_score.shape))
+
+
+    #print('img shape : {}'.format(img.size()))
+    #print('region score shape : {}'.format(region_score.size()))
+    #print('affinity score shape : {}'.format(affinity_score.size()))

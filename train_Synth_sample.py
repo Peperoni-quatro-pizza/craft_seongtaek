@@ -14,7 +14,7 @@ import torch.optim as optim
 import re
 
 from math import exp 
-from data_loader_sample import SampleDataset , ToTensor
+from data_loader_sample import SampleDataset , ToTensor, Resize, RandomCrop, normalize
 from Gaussian import main 
 from data_utils import generate_gt
 
@@ -30,16 +30,18 @@ import random
 
 random.seed(10)
 
+trans = transforms.Compose([RandomCrop(scale=0.25) , normalize(), Resize() ,ToTensor()])
+
 if __name__ == '__main__': 
 
     sample_dataset = SampleDataset(image_folder='/root/data/SynthText' ,
                                     imnames= '/root/data/SynthText/imnames.npy',
                                     charBB = '/root/data/SynthText/charBB.npy',
                                     aff_charBB='/root/data/SynthText/aff_charBB.npy',
-                                    transform=ToTensor())  # ->  Augmentation 추가하자 
+                                    transform=trans)  # ->  Augmentation 추가하자 
     sample_train_loader = torch.utils.data.DataLoader(
         sample_dataset,
-        batch_size = 24,  #16까지는 올라가는데 32는 안된다. 24시도해보자 
+        batch_size = 16,  #16까지는 올라가는데 32는 안된다. 24시도해보자 
         shuffle = True, 
         num_workers = 0,
         drop_last = True,
@@ -90,7 +92,7 @@ if __name__ == '__main__':
 
             if index % 2 == 0 and index > 0:
                 et = time.time()
-                print('epoch {}:({}/{}) batch || training time for 24 batch {} || training loss {} ||'.format(epoch, index, len(sample_train_loader), et-st, loss_value/2))
+                print('epoch {}:({}/{}) batch || training time for 16 batch {} || training loss {} ||'.format(epoch, index, len(sample_train_loader), et-st, loss_value/2))
                 loss_time = 0
                 loss_value = 0
                 st = time.time()
