@@ -128,6 +128,18 @@ def make_size_list(img_folder_path, imnames):
     return img_size_list 
 
 
+def Gray2RGB(image): 
+
+    # H x W -> H x W x C 
+    image = image*255
+    image = image.astype(np.uint8)
+
+    image = cv2.applyColorMap(image, cv2.COLORMAP_JET)
+    image = cv2.cvtColor(image, cv2.COLOR_BGR2RGB)
+
+    return image
+
+
 if __name__ =='__main__':
 
     print("Data load")

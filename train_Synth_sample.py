@@ -33,27 +33,27 @@ random.seed(10)
 if __name__ == '__main__': 
 
     sample_dataset = SampleDataset(image_folder='/root/data/SynthText' ,
-                                    imnames= '/root/data/SynthText/imnames_sample.npy',
-                                    charBB = '/root/data/SynthText/charBB_sample.npy',
-                                    aff_charBB='/root/data/SynthText/aff_charBB_sample.npy',
-                                    transform=ToTensor())
+                                    imnames= '/root/data/SynthText/imnames.npy',
+                                    charBB = '/root/data/SynthText/charBB.npy',
+                                    aff_charBB='/root/data/SynthText/aff_charBB.npy',
+                                    transform=ToTensor())  # ->  Augmentation 추가하자 
     sample_train_loader = torch.utils.data.DataLoader(
         sample_dataset,
-        batch_size = 16,
+        batch_size = 24,  #16까지는 올라가는데 32는 안된다. 24시도해보자 
         shuffle = True, 
         num_workers = 0,
         drop_last = True,
-        pin_memory = True)  #이게 뭐지??
+        pin_memory = True)  
 
     net = CRAFT()
 
     net = net.cuda()
 
     net = torch.nn.DataParallel(net, device_ids = [0,1]).cuda()
-    cudnn.benchmark = True  #이게 뭐지? 
+    cudnn.benchmark = True  # -> 이걸 쓰는게 맞을까.... 
 
     optimizer = optim.Adam(net.parameters(), lr = 1e-4 )
-    criterion = nn.MSELoss()
+    criterion = nn.MSELoss() # -> custom Loss : Online hard negative mining 구현해야한다. 
 
     net.train()
 
@@ -68,10 +68,8 @@ if __name__ == '__main__':
         for index, (image , region_label , affinity_label) in enumerate(sample_train_loader):
         
             image = Variable(image.type(torch.FloatTensor)).cuda()
-            region_label = region_label.type(torch.FloatTensor)
-            affinity_label = affinity_label.type(torch.FloatTensor)
-            region_label = Variable(region_label).cuda()
-            affinity_label = Variable(affinity_label).cuda()
+            region_label = Variable(region_label.type(torch.FloatTensor)).cuda()
+            affinity_label = Variable(affinity_label.type(torch.FloatTensor)).cuda()
 
             out, _ = net(image)
 
@@ -79,6 +77,7 @@ if __name__ == '__main__':
 
             out1 = out[:, :, :, 0].cuda()
             out2 = out[:, :, :, 1].cuda()
+
             loss_region = criterion(out1 , region_label)
             loss_affinity = criterion(out2, affinity_label)
 
@@ -91,10 +90,20 @@ if __name__ == '__main__':
 
             if index % 2 == 0 and index > 0:
                 et = time.time()
-                print('epoch {}:({}/{}) batch || training time for 16 batch {} || training loss {} ||'.format(epoch, index, len(sample_train_loader), et-st, loss_value/2))
+                print('epoch {}:({}/{}) batch || training time for 24 batch {} || training loss {} ||'.format(epoch, index, len(sample_train_loader), et-st, loss_value/2))
                 loss_time = 0
                 loss_value = 0
                 st = time.time()
+
+            if index % 5000 ==0 and index > 0: 
+                print('Save epoch : {} , index : {}'.format(epoch, index))
+                torch.save({
+                            'epoch' : epoch,
+                            'model_state_dict' : net.state_dict(),
+                            'optimizer_state_dict' : optimizer.state_dict(),
+                            'loss' : loss_value
+                            }, '/root/data/model_param_sample2/{}_{}.pth'.format(epoch,index))
+
 
             
 
