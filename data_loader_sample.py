@@ -60,13 +60,19 @@ class ToTensor(object):
 
 class RandomCrop(object): 
 
-    def __init__(self, scale=0.2):
-
+    def __init__(self, scale=0.2, p=0.6):
+        
+        #crop 비율
         self.scale = scale
+        #crop할 확률 
+        self.p =p
 
     def __call__(self, gt): 
 
         image, region_score, affinity_score = gt 
+
+        if random.random() > self.p: 
+            return image, region_score, affinity_score
 
         rand1 = random.random()*self.scale
         rand2 = random.random()*self.scale
@@ -85,13 +91,34 @@ class RandomCrop(object):
 
 class Resize(object): 
 
-    def __init__(self, target_size=768):
+    def __init__(self, target_size=768, padding=False, p=0.3):
 
         self.target_size = target_size
+        self.padding = padding
+        #padding할 확률 
+        self.p = p 
 
-    def __call__(self, gt): 
+    def __call__(self, gt):
 
         image, region_score, affinity_score = gt 
+
+        if random.random() < self.p:
+
+            self.padding = True 
+
+        if self.padding: 
+
+            padding_image = np.zeros((self.target_size, self.target_size, 3), dtype=np.float32)
+            padding_image[ : image.shape[0] ,  : image.shape[1] , : ] = image 
+            image = padding_image
+
+            padding_region = np.zeros((self.target_size, self.target_size), dtype=np.float32)
+            padding_region[:region_score.shape[0], :region_score.shape[1]] = region_score
+            region_score = padding_region
+
+            padding_affinity = np.zeros((self.target_size, self.target_size), dtype=np.float32)
+            padding_affinity[:affinity_score.shape[0], :affinity_score.shape[1]] = affinity_score
+            affinity_score = padding_affinity
 
         image = cv2.resize(image, (self.target_size, self.target_size), cv2.INTER_LINEAR)
 
@@ -99,8 +126,6 @@ class Resize(object):
         affinity_score = cv2.resize(affinity_score, (self.target_size//2, self.target_size//2), cv2.INTER_LINEAR)
 
         return image, region_score, affinity_score
-
-
 
 #Sample Data Set 
 class SampleDataset(Dataset): 
@@ -145,7 +170,7 @@ if __name__ == '__main__':
                                     imnames= '/root/data/SynthText/imnames_sample.npy',
                                     charBB = '/root/data/SynthText/charBB_sample.npy',
                                     aff_charBB='/root/data/SynthText/aff_charBB_sample.npy',
-                                    transform= transforms.Compose([RandomCrop(scale=0.25),Resize()]))
+                                    transform= transforms.Compose([RandomCrop(scale=0.25, p = 0.6),Resize()]))
 
     img, region_score, affinity_score = sample_dataset[0]
 
