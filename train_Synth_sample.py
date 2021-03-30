@@ -33,7 +33,6 @@ import random
 
 random.seed(10)
 
-
 trans = transforms.Compose([RandomCrop(scale=0.25) , normalize(), Resize() ,ToTensor()])
 
 if __name__ == '__main__': 
@@ -45,7 +44,7 @@ if __name__ == '__main__':
                                     transform=trans)  # ->  Augmentation 추가하자 
     sample_train_loader = torch.utils.data.DataLoader(
         sample_dataset,
-        batch_size = 24,  #16까지는 올라가는데 32는 안된다. 24시도해보자 
+        batch_size = 16,  #16까지는 올라가는데 32는 안된다. 24시도해보자 
         shuffle = True, 
         num_workers = 0,
         drop_last = True,
@@ -83,9 +82,11 @@ if __name__ == '__main__':
             affinity_label = Variable(affinity_label.type(torch.FloatTensor)).cuda()
 
             out, _ = net(image)
-
+    
             optimizer.zero_grad()
 
+         
+           
             out1 = out[:, :, :, 0].cuda()
             out2 = out[:, :, :, 1].cuda()
 
@@ -98,7 +99,6 @@ if __name__ == '__main__':
             optimizer.step()
 
             loss_value += loss.item()
-
             if index % 10 == 0 and index > 0:
                 et = time.time()
                 print('epoch {}:({}/{}) batch || training time for 16 batch {} || training loss {} ||'.format(epoch, index, len(sample_train_loader), et-st, loss_value/2))

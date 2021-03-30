@@ -12,6 +12,7 @@ from torchvision import transforms, utils
 from scipy import io as scio
 from Gaussian import main 
 from data_utils import generate_gt
+import time 
 
 # 경고 메시지 무시하기
 import warnings
@@ -151,9 +152,11 @@ class SampleDataset(Dataset):
 
     def __getitem__(self, index): 
 
+ 
         img_name = os.path.join( self.image_folder ,self.imnames[index][0]) 
-
+        
         image = io.imread(img_name)
+   
         region_score = generate_gt(img = image, heatmap=self.heatmap, bbox_cor=self.charBB[index].transpose(2,1,0))
         affinity_score = generate_gt(img = image, heatmap=self.heatmap, bbox_cor=self.aff_charBB[index])
 
