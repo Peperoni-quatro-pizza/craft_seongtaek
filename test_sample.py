@@ -40,7 +40,7 @@ def test(image, epoch, index, cvt = False):
 
     print('input image shape {}'.format(image.shape))
 
-    checkpoint = torch.load('/root/data/model_param_sample/{}_{}.pth'.format(epoch, index))
+    checkpoint = torch.load('/root/data/model_param_sample2/{}_{}.pth'.format(epoch, index))
 
     net = CRAFT().cuda()
 
@@ -76,14 +76,16 @@ def test(image, epoch, index, cvt = False):
 
 if __name__ == '__main__': 
 
-    image = '/root/data/sample/sample1.PNG'
+    image = '/root/data/sample/sample_eng3.png'
     image_ = io.imread(image)
+
+    print(image_.shape)
 
     #이미지가 alpha 채널이 있는경우 
     if image_.shape[2] == 4: 
         image_ = cv2.cvtColor(image_, cv2.COLOR_RGBA2RGB)
 
-    region, affinity = test(image=image_, epoch=1, index=45000 , cvt=True)
+    region, affinity = test(image=image_, epoch=0, index=25000 , cvt=True)
 
     print('region_shape : {}'.format(region.shape))
 
@@ -95,14 +97,14 @@ if __name__ == '__main__':
     affinity = cv2.resize(affinity, (image_.shape[1], image_.shape[0] ) ,cv2.INTER_LINEAR)
 
 
-    io.imsave('/root/craft_re/sample_image/test/region.jpg', region)
-    io.imsave('/root/craft_re/sample_image/test/affinity.jpg', affinity)
+    io.imsave('/root/craft_re/sample_image/test/region_eng.jpg', region)
+    io.imsave('/root/craft_re/sample_image/test/affinity_eng.jpg', affinity)
 
     print('image_shape[0] : {} , image_shape[1] : {}'.format(image_.shape[0], image_.shape[1]))
 
     add_weighted_image = cv2.addWeighted(image_ , 0.5 , region, 0.5 , 0 )
 
-    io.imsave('/root/craft_re/sample_image/test/pred.jpg', add_weighted_image)
+    io.imsave('/root/craft_re/sample_image/test/pred_eng.jpg', add_weighted_image)
 
 
 

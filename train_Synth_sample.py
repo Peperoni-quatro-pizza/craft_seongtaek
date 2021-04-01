@@ -16,10 +16,11 @@ import torch.distributed as dist
 from torch.nn.parallel import DistributedDataParallel
 import torch.multiprocessing as mp
 
-from math import exp 
+from math import exp, gamma 
 from data_loader_sample import SampleDataset , ToTensor, Resize, RandomCrop, normalize
 from Gaussian import main 
 from data_utils import generate_gt
+from Loss_sample import OHEMloss
 
 from collections import OrderedDict
 
@@ -44,14 +45,16 @@ if __name__ == '__main__':
                                     transform=trans)  # ->  Augmentation 추가하자 
     sample_train_loader = torch.utils.data.DataLoader(
         sample_dataset,
-        batch_size = 16,  #16까지는 올라가는데 32는 안된다. 24시도해보자 
+        batch_size = 32,  #16까지는 올라가는데 32는 안된다. 24시도해보자 
         shuffle = True, 
         num_workers = 0,
         drop_last = True,
         pin_memory = True)  
 
-    net = CRAFT()
 
+    scaler = torch.cuda.amp.GradScaler()
+    net = CRAFT()
+    optimizer = optim.Adam(net.parameters(), lr = 1e-4 )
     net = net.cuda()
 
     #DataParallel
@@ -62,8 +65,10 @@ if __name__ == '__main__':
 
     cudnn.benchmark = True
 
-    optimizer = optim.Adam(net.parameters(), lr = 1e-4 )
-    criterion = nn.MSELoss() # -> custom Loss : Online hard negative mining 구현해야한다. 
+    scheduler = optim.lr_scheduler.StepLR(optimizer, step_size=10000, gamma=0.8)
+
+    criterion = OHEMloss()
+    #criterion = nn.MSELoss() # -> custom Loss : Online hard negative mining 구현해야한다. 
 
     net.train()
 
@@ -80,28 +85,27 @@ if __name__ == '__main__':
             image = Variable(image.type(torch.FloatTensor)).cuda()
             region_label = Variable(region_label.type(torch.FloatTensor)).cuda()
             affinity_label = Variable(affinity_label.type(torch.FloatTensor)).cuda()
-
-            out, _ = net(image)
-    
             optimizer.zero_grad()
+            with torch.cuda.amp.autocast():
+                out, _ = net(image)
 
-         
-           
-            out1 = out[:, :, :, 0].cuda()
-            out2 = out[:, :, :, 1].cuda()
+                out1 = out[:, :, :, 0].cuda()
+                out2 = out[:, :, :, 1].cuda()
 
-            loss_region = criterion(out1 , region_label)
-            loss_affinity = criterion(out2, affinity_label)
+                loss, _, _ = criterion(region_label, affinity_label, out1, out2)
 
-            loss = loss_region + loss_affinity
+            scaler.scale(loss).backward()
+            scaler.step(optimizer)
+            scaler.update()
 
-            loss.backward()
-            optimizer.step()
+            #loss.backward()
+            #optimizer.step()
+            scheduler.step()
 
             loss_value += loss.item()
-            if index % 10 == 0 and index > 0:
+            if index % 2 == 0 and index > 0:
                 et = time.time()
-                print('epoch {}:({}/{}) batch || training time for 16 batch {} || training loss {} ||'.format(epoch, index, len(sample_train_loader), et-st, loss_value/2))
+                print('epoch {}:({}/{}) batch || training time for 32 batch {} || training loss {} || learning rate {}'.format(epoch, index, len(sample_train_loader), et-st, loss_value/2, optimizer.param_groups[0]['lr']))
                 loss_time = 0
                 loss_value = 0
                 st = time.time()

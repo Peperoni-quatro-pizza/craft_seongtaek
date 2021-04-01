@@ -7,6 +7,7 @@ MIT License
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
+from torch.cuda.amp import autocast 
 
 from basenet.vgg16_bn import vgg16_bn, init_weights
 
@@ -54,7 +55,8 @@ class CRAFT(nn.Module):
         init_weights(self.upconv3.modules())
         init_weights(self.upconv4.modules())
         init_weights(self.conv_cls.modules())
-        
+    
+    @autocast()
     def forward(self, x):
         """ Base network """
         sources = self.basenet(x)
