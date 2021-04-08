@@ -43,13 +43,29 @@ if __name__ == '__main__':
                                     charBB = '/root/data/SynthText/charBB.npy',
                                     aff_charBB='/root/data/SynthText/aff_charBB.npy',
                                     transform=trans)  # ->  Augmentation 추가하자 
+
     sample_train_loader = torch.utils.data.DataLoader(
         sample_dataset,
-        batch_size = 32,  #16까지는 올라가는데 32는 안된다. 24시도해보자 
-        shuffle = True, 
+        batch_size = 32,  
+        shuffle = False, 
         num_workers = 0,
         drop_last = True,
-        pin_memory = True)  
+        pin_memory = True,
+        )  
+
+
+
+
+
+    # sample_train_loader = torch.utils.data.DataLoader(
+    #     sample_dataset,
+    #     batch_size = 32,  
+    #     shuffle = True, 
+    #     num_workers = 0,
+    #     drop_last = True,
+    #     pin_memory = True)  
+
+
 
 
     scaler = torch.cuda.amp.GradScaler()
@@ -65,10 +81,10 @@ if __name__ == '__main__':
 
     cudnn.benchmark = True
 
-    scheduler = optim.lr_scheduler.StepLR(optimizer, step_size=10000, gamma=0.8)
+    scheduler = optim.lr_scheduler.StepLR(optimizer, step_size=2000, gamma=0.9)
 
-    criterion = OHEMloss()
-    #criterion = nn.MSELoss() # -> custom Loss : Online hard negative mining 구현해야한다. 
+    #criterion = OHEMloss()
+    criterion = nn.MSELoss() # -> custom Loss : Online hard negative mining 구현해야한다. 
 
     net.train()
 
@@ -92,7 +108,10 @@ if __name__ == '__main__':
                 out1 = out[:, :, :, 0].cuda()
                 out2 = out[:, :, :, 1].cuda()
 
-                loss, _, _ = criterion(region_label, affinity_label, out1, out2)
+                loss_r = criterion(out1, region_label)
+                loss_a = criterion(out2, affinity_label)
+
+                loss = loss_r + loss_a 
 
             scaler.scale(loss).backward()
             scaler.step(optimizer)
